@@ -66,6 +66,10 @@ export default function LoginForm({ onSubmit, loading, error }: LoginFormProps) 
         >
           {loading ? "Logging in…" : "Log in"}
         </button>
+
+        <p className="mt-4 text-center text-xs text-neutral-400 dark:text-neutral-600">
+          Made with ❤️ by Aaryan Jadhav
+        </p>
       </form>
     </div>
   );
