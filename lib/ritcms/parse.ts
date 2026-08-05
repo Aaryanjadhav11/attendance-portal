@@ -1,4 +1,5 @@
 import * as cheerio from "cheerio";
+import { debugLog } from "../debug";
 import type { AttendanceRecord } from "./types";
 
 export function loadHtml(html: string) {
@@ -72,7 +73,10 @@ export function parseSubjectRows(
 /** Parses the #Panel2 date-wise attendance table into {date, status} records. */
 export function parseAttendanceDetail($: cheerio.CheerioAPI): AttendanceRecord[] {
   const table = $("#Panel2 table").first();
-  if (!table.length) return [];
+  if (!table.length) {
+    debugLog("attendance detail table (#Panel2 table) not found");
+    return [];
+  }
 
   const headers = table
     .find("th")
@@ -80,6 +84,9 @@ export function parseAttendanceDetail($: cheerio.CheerioAPI): AttendanceRecord[]
     .map((th) => $(th).text().trim());
   const dateIdx = headers.findIndex((h) => /date/i.test(h));
   const statusIdx = headers.findIndex((h) => /attendance/i.test(h));
+  if (dateIdx < 0 || statusIdx < 0) {
+    debugLog("attendance detail headers missing date/status column", headers);
+  }
 
   const rows = table.find("tr").slice(1);
   const records: AttendanceRecord[] = [];

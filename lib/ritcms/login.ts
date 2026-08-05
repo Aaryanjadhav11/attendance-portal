@@ -1,4 +1,5 @@
 import { LOGIN_URL } from "./constants";
+import { debugLog } from "../debug";
 import { timedFetch, type Session } from "./http";
 import { buildHiddenPayload, getAcademicYearOption, loadHtml } from "./parse";
 import { LoginFailedError } from "./types";
@@ -36,6 +37,8 @@ export async function login(
   const lower = postHtml.toLowerCase();
 
   if (!lower.includes("logout") && !lower.includes("welcome")) {
+    debugLog("login check failed: no logout/welcome marker in response");
     throw new LoginFailedError();
   }
+  debugLog("login ok");
 }

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { debugError, debugLog } from "@/lib/debug";
 import { scrapeAttendance } from "@/lib/ritcms";
 import { CmsUnreachableError, LoginFailedError } from "@/lib/ritcms/types";
 
@@ -24,11 +25,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(result, { status: 200 });
   } catch (err) {
     if (err instanceof LoginFailedError) {
+      debugLog("login failed", { prn });
       return NextResponse.json({ error: "Login failed" }, { status: 401 });
     }
     if (err instanceof CmsUnreachableError) {
+      debugError("CMS unreachable", err);
       return NextResponse.json({ error: "CMS unreachable, try again" }, { status: 502 });
     }
+    debugError("unexpected error scraping attendance", err);
     return NextResponse.json({ error: "Unexpected server error" }, { status: 500 });
   }
 }

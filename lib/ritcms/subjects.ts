@@ -1,5 +1,6 @@
 import { ATTENDANCE_URL, STUDENT_HOME_URL, SUBJECTS_TABLE_IDS } from "./constants";
 import { calcAttendance } from "./calc";
+import { debugLog } from "../debug";
 import { timedFetch, type Session } from "./http";
 import {
   buildHiddenPayload,
@@ -51,9 +52,13 @@ export async function fetchSubjects(session: Session): Promise<Subject[]> {
 
   const basePayload = buildHiddenPayload($, "form#form1");
   const found = findSubjectsTable($, SUBJECTS_TABLE_IDS);
-  if (!found) return [];
+  if (!found) {
+    debugLog("subjects table not found, tried ids:", SUBJECTS_TABLE_IDS);
+    return [];
+  }
 
   const rows = parseSubjectRows($, found.table);
+  debugLog("subjects table found", { id: found.id, rows: rows.length });
 
   const subjects = await Promise.all(
     rows.map(async ({ code, name }, idx) => {

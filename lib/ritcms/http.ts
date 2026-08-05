@@ -1,6 +1,7 @@
 import { CookieJar } from "tough-cookie";
 import fetchCookie from "fetch-cookie";
 import { REQUEST_TIMEOUT_MS } from "./constants";
+import { debugError } from "../debug";
 import { CmsUnreachableError } from "./types";
 
 // One cookie-jar-aware fetch per scrape request, mirroring Python's
@@ -24,6 +25,7 @@ export async function timedFetch(
       signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     });
   } catch (err) {
+    debugError(`timedFetch failed: ${url}`, err);
     throw new CmsUnreachableError(
       err instanceof Error ? err.message : "Network error contacting CMS",
     );

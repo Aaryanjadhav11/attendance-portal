@@ -45,21 +45,60 @@ There is no Python runtime in `iucee-test` — the backend is Node.js only
 - `lib/ritcms/` — the ported scraping logic, one file per concern
   (`constants.ts`, `http.ts`, `parse.ts`, `login.ts`, `subjects.ts`,
   `calc.ts`, `types.ts`), tied together by `scrapeAttendance()` in
-  `index.ts`.
+  `index.ts`. `subjects.ts`'s `fetchSubjects()` returns `[]` silently if
+  RITCMS's subjects grid doesn't match a known table id
+  (`SUBJECTS_TABLE_IDS` in `constants.ts`) — this is the main way a
+  successful login still ends up with zero attendance (see Debugging
+  below).
 - `app/api/attendance/route.ts` — single `POST` endpoint. Takes
   `{ prn, password }`, runs the full login+scrape+calc in one request, and
   returns `{ subjects, overall }`. Returns `401` on bad credentials (the
   frontend clears its saved cookies on this), `502` on CMS
-  network/timeout errors. Exports `maxDuration = 60` (see `vercel.json`)
-  since a slow campus CMS can take longer than Vercel Hobby's 10s default.
-  **No session state persists between calls** — each request creates a
-  fresh cookie jar and re-authenticates from scratch.
-- `app/page.tsx` + `components/` — client-side UI: login form, or (if
-  cookies are already saved) auto-login straight into the dashboard
-  showing an overall summary bar and one expandable card per subject.
+  network/timeout errors, `500` on anything unexpected. A `200` can still
+  carry an empty result (`subjects: []` / `overall.total: 0`) — that's not
+  an HTTP-level error, it's the CMS scrape coming back empty. Exports
+  `maxDuration = 60` (see `vercel.json`) since a slow campus CMS can take
+  longer than Vercel Hobby's 10s default. **No session state persists
+  between calls** — each request creates a fresh cookie jar and
+  re-authenticates from scratch.
+- `app/page.tsx` — sole client-side state owner (login form vs. dashboard
+  vs. fail state, loading/error, saved-session bootstrap). Renders one of:
+  - `components/LoginForm.tsx` — no saved cookies / not logged in.
+  - `components/FailState.tsx` — login succeeded but the scrape came back
+    empty (`subjects.length === 0 || overall.total === 0`). Cheeky
+    "RITCMS went Wastagunahuya" message with Try again / Log out; wired to
+    the same `refresh()`/`logout()` used by the dashboard.
+  - Dashboard (`components/SummaryBar.tsx` + one
+    `components/SubjectCard.tsx` per subject) — normal non-empty result.
+  - `lib/clientAuth.ts` (cookie persistence) and `lib/resultCache.ts`
+    (10-minute localStorage cache keyed by PRN, to avoid re-scraping on
+    every page load) back this flow.
+
+## Debugging & error handling
+- `lib/debug.ts` exports `debugLog`/`debugError` — thin wrappers around
+  `console.debug`/`console.error`, prefixed `[RITCMS]`. They're **always
+  on, including in production** (no dev-only gating): the goal is that a
+  broken scrape can be diagnosed from the browser console (client-side
+  calls) or Vercel function logs (server-side calls) without needing a
+  local repro. Never pass the password to them.
+- Called at every point that swallows a failure into an empty/degraded
+  result or a thrown error: `subjects.ts` (subjects table not found),
+  `parse.ts` (`#Panel2` detail table or header columns not found),
+  `login.ts` (login check failed), `http.ts` (`timedFetch` network
+  failure), `index.ts` (scrape start/done), the API route (every catch
+  branch), and `app/page.tsx` (every client-side error/empty branch).
+- **The site UI only ever shows short, user-facing error strings**
+  (`LoginForm`'s inline error text, `FailState`'s cheeky copy) — never raw
+  errors, stack traces, or debug payloads. When adding a new failure mode,
+  put the diagnostic detail in a `debugLog`/`debugError` call and keep the
+  UI-facing string terse.
 
 ## Guardrails
 - **Never** reintroduce `v2.py`'s hardcoded `ACCOUNTS` dict, or any real
   student PRN/password, into this repo. Login is user-entered only.
 - Keep all RITCMS HTTP calls inside `lib/ritcms/*` / the API route — never
   add a client-side fetch to `210.212.171.172`.
+- Never log PRN+password together or the raw password via `debugLog`/
+  `debugError` — only PRN (a student ID, not a secret) may appear in logs.
+- Never put raw error objects, stack traces, or scrape debug output into
+  UI-facing state (`setError`, component props) — console/log-only.

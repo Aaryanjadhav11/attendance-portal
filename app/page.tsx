@@ -1,12 +1,18 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import FailState from "@/components/FailState";
 import LoginForm from "@/components/LoginForm";
 import SummaryBar from "@/components/SummaryBar";
 import SubjectCard from "@/components/SubjectCard";
 import { clearCredentials, getSavedCredentials, saveCredentials } from "@/lib/clientAuth";
+import { debugError, debugLog } from "@/lib/debug";
 import { clearResult, getCachedResult, saveResult } from "@/lib/resultCache";
 import type { ScrapeResult } from "@/lib/ritcms/types";
+
+function isEmptyResult(result: ScrapeResult): boolean {
+  return result.subjects.length === 0 || result.overall.total === 0;
+}
 
 export default function Home() {
   const [result, setResult] = useState<ScrapeResult | null>(null);
@@ -26,6 +32,7 @@ export default function Home() {
       if (!bypassCache) {
         const cached = getCachedResult(prn);
         if (cached) {
+          debugLog("using cached result", { prn, ageMs: cached.ageMs });
           setResult(cached.data);
           setUpdatedAt(Date.now() - cached.ageMs);
           if (persist) saveCredentials(prn, password);
@@ -42,6 +49,7 @@ export default function Home() {
         });
 
         if (resp.status === 401) {
+          debugLog("login rejected (401)", { prn });
           clearCredentials();
           clearResult();
           setError("Login failed — check your PRN and password.");
@@ -51,16 +59,23 @@ export default function Home() {
 
         if (!resp.ok) {
           const body = await resp.json().catch(() => ({}));
+          debugError("attendance request failed", { status: resp.status, body });
           setError(body.error ?? "Something went wrong. Try again.");
           return;
         }
 
         const data: ScrapeResult = await resp.json();
+        if (isEmptyResult(data)) {
+          debugLog("scrape succeeded but result is empty", { prn, data });
+        } else {
+          debugLog("scrape succeeded", { prn, subjects: data.subjects.length });
+        }
         setResult(data);
         setUpdatedAt(Date.now());
         saveResult(prn, data);
         if (persist) saveCredentials(prn, password);
-      } catch {
+      } catch (err) {
+        debugError("network error contacting /api/attendance", err);
         setError("Network error — could not reach the server.");
       } finally {
         setLoading(false);
@@ -112,6 +127,10 @@ export default function Home() {
         error={error}
       />
     );
+  }
+
+  if (isEmptyResult(result)) {
+    return <FailState onRetry={refresh} onLogout={logout} loading={loading} />;
   }
 
   return (
