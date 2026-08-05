@@ -27,7 +27,7 @@ export function buildHiddenPayload(
 export function getAcademicYearOption(
   $: cheerio.CheerioAPI,
 ): { name: string; value: string } | null {
-  const select = $("select#DropDownListAcademicYear");
+  const select = $("select#txt_AcademicYear");
   if (!select.length) return null;
   const name = select.attr("name");
   if (!name) return null;

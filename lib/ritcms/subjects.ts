@@ -12,9 +12,10 @@ import type { AttendanceRecord, Subject } from "./types";
 
 async function scrapeAttendanceDetails(
   session: Session,
+  url: string,
   payload: Record<string, string>,
 ): Promise<AttendanceRecord[]> {
-  const resp = await timedFetch(session, ATTENDANCE_URL, {
+  const resp = await timedFetch(session, url, {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams(payload),
@@ -44,6 +45,7 @@ export async function fetchSubjects(session: Session): Promise<Subject[]> {
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams(navPayload),
   });
+  const dynamicAttnUrl = attnResp.url;
   const attnHtml = await attnResp.text();
   const $ = loadHtml(attnHtml);
 
@@ -60,7 +62,7 @@ export async function fetchSubjects(session: Session): Promise<Subject[]> {
         __EVENTTARGET: found.id,
         __EVENTARGUMENT: `Select$${idx}`,
       };
-      const records = await scrapeAttendanceDetails(session, payload);
+      const records = await scrapeAttendanceDetails(session, dynamicAttnUrl, payload);
       const present = records.filter((r) => r.status === "P").length;
       const total = records.length;
       const { percent, skippable, required } = calcAttendance(present, total);
