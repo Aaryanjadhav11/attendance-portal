@@ -130,7 +130,7 @@ export default function Home() {
   }
 
   if (isEmptyResult(result)) {
-    return <FailState onRetry={refresh} onLogout={logout} loading={loading} />;
+    return <FailState onRetry={refresh} onLogout={logout} loading={loading} error={error} />;
   }
 
   return (
