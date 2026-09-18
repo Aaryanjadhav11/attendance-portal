@@ -84,6 +84,7 @@ export function parseAttendanceDetail($: cheerio.CheerioAPI): AttendanceRecord[]
     .map((th) => $(th).text().trim());
   const dateIdx = headers.findIndex((h) => /date/i.test(h));
   const statusIdx = headers.findIndex((h) => /attendance/i.test(h));
+  const timeIdx = headers.findIndex((h) => /time|lecture/i.test(h));
   if (dateIdx < 0 || statusIdx < 0) {
     debugLog("attendance detail headers missing date/status column", headers);
   }
@@ -96,10 +97,12 @@ export function parseAttendanceDetail($: cheerio.CheerioAPI): AttendanceRecord[]
       .toArray()
       .map((td) => $(td).text().trim());
     if (!cells.length) return;
-    records.push({
+    const record: AttendanceRecord = {
       date: cells[dateIdx >= 0 ? dateIdx : 0] ?? "Unknown",
       status: cells[statusIdx >= 0 ? statusIdx : cells.length - 1] ?? "?",
-    });
+    };
+    if (timeIdx >= 0 && cells[timeIdx]) record.time = cells[timeIdx];
+    records.push(record);
   });
   return records;
 }

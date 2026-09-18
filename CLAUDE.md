@@ -38,7 +38,7 @@ quick Read/Grep if a signature looks load-bearing for your change.
   `SUBJECTS_TABLE_IDS = ["GridViewLecturesConducted", "GVSubjects"]` (tried
   in order — different RITCMS deployments use different grid ids).
   `REQUEST_TIMEOUT_MS = 15_000`. `ATTENDANCE_TARGET = 0.75`.
-- **`types.ts`** — `AttendanceRecord{date,status:"P"|"A"|string}`,
+- **`types.ts`** — `AttendanceRecord{date,status:"P"|"A"|string,time?}`,
   `Subject{idx,code,name,present,total,percent,records,skippable,required}`,
   `OverallSummary{present,total,percent}`, `ScrapeResult{subjects,overall}`.
   `LoginFailedError`, `CmsUnreachableError` (both `extends Error`) — thrown
@@ -57,9 +57,10 @@ quick Read/Grep if a signature looks load-bearing for your change.
   matching `table#<id>` as `{table,id}|null`. `parseSubjectRows($, table)`
   → `{code,name}[]` from rows, skipping header, `cols.slice(1,5)` (mirrors
   v2.py). `parseAttendanceDetail($)` → reads `#Panel2 table`, finds
-  date/status columns by header regex (`/date/i`, `/attendance/i`),
-  returns `AttendanceRecord[]`; empty array + `debugLog` if table/headers
-  missing.
+  date/status/time columns by header regex (`/date/i`, `/attendance/i`,
+  `/time|lecture/i` for `time`, optional — omitted from a record if no
+  matching header or empty cell), returns `AttendanceRecord[]`; empty
+  array + `debugLog` if table/headers missing.
 - **`login.ts`** — `login(session, prn, password): Promise<void>`. GET
   `LOGIN_URL`, build hidden payload, set `txt_UserId`/`txt_password`/
   `cmd_LogIn="Login"` + academic-year option, POST. Success check: response
@@ -123,7 +124,19 @@ Render branches: `checkingSavedLogin` → null; `!result` → `LoginForm`;
   `open` state). Header: code/name, present/total/percent (red if <75%).
   Body when good: skippable count or "on the edge" if 0; when bad:
   required count. Expanded: per-date `AttendanceRecord[]` list, P green /
-  else red.
+  else red, plus `time` (if present) shown next to the date, each row in
+  a padded `px-2 py-1.5` block. Absent rows are clickable to toggle a
+  client-only `previewFlips:Set<number>` (record index) — "what if this
+  lecture had been present" — recomputed via `calcAttendance` (imported
+  from `lib/ritcms/calc.ts`, safe in a client component since it's pure
+  math, no I/O). No separate preview box: while `previewFlips.size>0` the
+  top summary lines (Att line + skip/required line) switch to showing the
+  recomputed present/percent/skippable/required in purple with a
+  "(preview)" tag, and an inline "Reset preview" link appears next to the
+  tap hint; flipped rows get a purple background + "P (preview)" label.
+  Preview state is local React state only — never written to
+  `resultCache`/cookies/server, so it can't be mistaken for real data on
+  reload.
 
 ### `lib/` (non-ritcms)
 - **`debug.ts`** — `debugLog(...args)`/`debugError(context,err)`, prefix

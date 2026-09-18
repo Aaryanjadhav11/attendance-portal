@@ -1,6 +1,7 @@
 export interface AttendanceRecord {
   date: string;
   status: "P" | "A" | string;
+  time?: string;
 }
 
 export interface Subject {
