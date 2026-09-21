@@ -1,8 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import FailState from "@/components/FailState";
 import LoginForm from "@/components/LoginForm";
+import PullToRefresh from "@/components/PullToRefresh";
+import StudentBanner from "@/components/StudentBanner";
 import SummaryBar from "@/components/SummaryBar";
 import SubjectCard from "@/components/SubjectCard";
 import { clearCredentials, getSavedCredentials, saveCredentials } from "@/lib/clientAuth";
@@ -117,6 +119,13 @@ export default function Home() {
     return () => clearInterval(id);
   }, []);
 
+  // Worst attendance first, so subjects below 75% (or on the edge) surface
+  // at the top instead of getting buried below the rest of the list.
+  const sortedSubjects = useMemo(
+    () => [...(result?.subjects ?? [])].sort((a, b) => a.percent - b.percent),
+    [result],
+  );
+
   if (checkingSavedLogin) return null;
 
   if (!result) {
@@ -134,44 +143,44 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen bg-neutral-50 px-4 py-6 dark:bg-neutral-950">
-      <div className="mx-auto max-w-md">
-        <div className="mb-1 flex items-center justify-between">
-          <h1 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100">
-            Attendance
-          </h1>
-          <div className="flex items-center gap-3 text-sm">
-            <button
-              type="button"
-              onClick={refresh}
-              disabled={loading}
-              className="text-neutral-500 underline disabled:opacity-50 dark:text-neutral-400"
-            >
-              {loading ? "Refreshing…" : "Refresh"}
-            </button>
-            <button
-              type="button"
-              onClick={logout}
-              className="text-neutral-500 underline dark:text-neutral-400"
-            >
-              Log out
-            </button>
+    <PullToRefresh onRefresh={refresh} refreshing={loading}>
+      <div className="min-h-screen bg-neutral-50 px-4 py-4 pb-16 sm:py-6 dark:bg-neutral-950">
+        <div className="mx-auto max-w-md">
+          {session && <StudentBanner student={result.student} prn={session.prn} />}
+
+          <div className="mb-1 flex items-center justify-between gap-3">
+            <h1 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100">
+              Attendance
+            </h1>
+            <div className="flex shrink-0 items-center gap-3 text-sm">
+              <button
+                type="button"
+                onClick={logout}
+                className="text-neutral-500 underline dark:text-neutral-400"
+              >
+                Log out
+              </button>
+            </div>
           </div>
+
+          {loading && (
+            <p className="mb-4 text-xs text-neutral-400 dark:text-neutral-600">Refreshing…</p>
+          )}
+
+          {!loading && updatedAt && now && (
+            <p className="mb-4 text-xs text-neutral-400 dark:text-neutral-600">
+              Updated {formatAge(now - updatedAt)}
+            </p>
+          )}
+
+          <SummaryBar overall={result.overall} />
+
+          {sortedSubjects.map((s) => (
+            <SubjectCard key={s.idx} subject={s} />
+          ))}
         </div>
-
-        {updatedAt && now && (
-          <p className="mb-4 text-xs text-neutral-400 dark:text-neutral-600">
-            Updated {formatAge(now - updatedAt)}
-          </p>
-        )}
-
-        <SummaryBar overall={result.overall} />
-
-        {result.subjects.map((s) => (
-          <SubjectCard key={s.idx} subject={s} />
-        ))}
       </div>
-    </div>
+    </PullToRefresh>
   );
 }
 

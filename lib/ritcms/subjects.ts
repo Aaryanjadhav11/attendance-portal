@@ -7,9 +7,10 @@ import {
   findSubjectsTable,
   loadHtml,
   parseAttendanceDetail,
+  parseStudentInfo,
   parseSubjectRows,
 } from "./parse";
-import type { AttendanceRecord, Subject } from "./types";
+import type { AttendanceRecord, StudentInfo, Subject } from "./types";
 
 async function scrapeAttendanceDetails(
   session: Session,
@@ -33,7 +34,9 @@ async function scrapeAttendanceDetails(
  * lever for staying under Vercel's function timeout — though ASP.NET's
  * per-session request locking may still serialize them server-side).
  */
-export async function fetchSubjects(session: Session): Promise<Subject[]> {
+export async function fetchSubjects(
+  session: Session,
+): Promise<{ subjects: Subject[]; student: StudentInfo }> {
   const homeResp = await timedFetch(session, STUDENT_HOME_URL);
   const homeHtml = await homeResp.text();
   const home$ = loadHtml(homeHtml);
@@ -49,12 +52,13 @@ export async function fetchSubjects(session: Session): Promise<Subject[]> {
   const dynamicAttnUrl = attnResp.url;
   const attnHtml = await attnResp.text();
   const $ = loadHtml(attnHtml);
+  const student = parseStudentInfo($);
 
   const basePayload = buildHiddenPayload($, "form#form1");
   const found = findSubjectsTable($, SUBJECTS_TABLE_IDS);
   if (!found) {
     debugLog("subjects table not found, tried ids:", SUBJECTS_TABLE_IDS);
-    return [];
+    return { subjects: [], student };
   }
 
   const rows = parseSubjectRows($, found.table);
@@ -87,5 +91,5 @@ export async function fetchSubjects(session: Session): Promise<Subject[]> {
     }),
   );
 
-  return subjects;
+  return { subjects, student };
 }

@@ -18,7 +18,7 @@ export async function scrapeAttendance(
   debugLog("scrape start", { prn });
   const session = createSession();
   await login(session, prn, password);
-  const subjects = await fetchSubjects(session);
+  const { subjects, student } = await fetchSubjects(session);
 
   const totalPresent = subjects.reduce((sum, s) => sum + s.present, 0);
   const totalLectures = subjects.reduce((sum, s) => sum + s.total, 0);
@@ -29,5 +29,6 @@ export async function scrapeAttendance(
   return {
     subjects,
     overall: { present: totalPresent, total: totalLectures, percent: overallPercent },
+    student,
   };
 }

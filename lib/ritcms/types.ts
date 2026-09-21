@@ -22,9 +22,17 @@ export interface OverallSummary {
   percent: number;
 }
 
+export interface StudentInfo {
+  name: string | null;
+  class: string | null;
+  branch: string | null;
+  academicYear: string | null;
+}
+
 export interface ScrapeResult {
   subjects: Subject[];
   overall: OverallSummary;
+  student: StudentInfo;
 }
 
 export class LoginFailedError extends Error {
